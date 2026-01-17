@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'commands/init_command.dart';
 import 'commands/feature_command.dart';
+import 'commands/usecase_command.dart';
 
 void run(List<String> arguments) {
   final parser = ArgParser()
@@ -12,6 +13,7 @@ void run(List<String> arguments) {
   final commands = {
     'init': InitCommand(),
     'feature': FeatureCommand(),
+    'usecase': UseCaseCommand(),
   };
 
   for (final entry in commands.entries) {
@@ -64,6 +66,7 @@ Usage: embit <command> [options]
 Commands:
   init      Initialize project with full architecture
   feature   Create new feature with DI, Bloc, and routing
+  usecase   Create new usecase for existing feature 
 
 Options:
   -h, --help    Show this help
@@ -74,6 +77,8 @@ Examples:
   embit init --force
   embit feature --name auth --verbose
   embit feature -n profile --with-example
+  embit usecase -f products -n archive_product -t update
+  embit usecase -f auth -n verify_otp --with-event 
 
 Run 'embit <command> --help' for command-specific help.
 ''');
