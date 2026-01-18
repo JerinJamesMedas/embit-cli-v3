@@ -30,7 +30,7 @@ void run(List<String> arguments) {
     }
 
     if (results['version'] == true) {
-      print('Embit CLI v0.7.4');
+      print('Embit CLI v0.7.5');
       print('Architecture enforcement for Flutter');
       return;
     }
@@ -57,7 +57,7 @@ void run(List<String> arguments) {
 void _printHelp(ArgParser parser) {
   print('''
 ╔════════════════════════════════════════╗
-║            Embit CLI v0.7.4           ║
+║            Embit CLI v0.7.5           ║
 ║    Architecture Enforcement Tool       ║
 ╚════════════════════════════════════════╝
 
@@ -78,7 +78,13 @@ Examples:
   embit feature --name auth --verbose
   embit feature -n profile --with-example
   embit usecase -f products -n archive_product -t update
-  embit usecase -f auth -n verify_otp --with-event 
+  embit usecase -f auth -n verify_otp --with-event
+
+  # Without event (just injects usecase)
+  embit usecase -f feed -n get_trending_posts -t get-list
+
+  # With event (full wiring)
+  embit usecase -f feed -n archive_post -t update --with-event
 
 Run 'embit <command> --help' for command-specific help.
 ''');

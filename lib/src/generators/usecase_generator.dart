@@ -36,6 +36,10 @@ class UseCaseGenerator {
     if (config.withEvent) {
       _log('📋 Adding BLoC event...');
       await _addBlocEvent();
+
+      
+      _log('📊 Updating BLoC state...');
+      await _updateBlocState();
     }
 
     print('✅ UseCase "${config.useCaseName}" generated successfully!');
@@ -286,6 +290,8 @@ class UseCaseGenerator {
 ''');
   }
 
+  
+
   // ==================== UPDATE BLOC ====================
 
   Future<void> _updateBLoC() async {
@@ -305,7 +311,7 @@ class UseCaseGenerator {
       return;
     }
 
-    // Add import
+    // 1. Add import
     final useCaseImport =
         "import '../../domain/usecases/${config.useCaseSnakeCase}_usecase.dart';";
     final importRegex = RegExp(r"import '[^']+';");
@@ -317,74 +323,46 @@ class UseCaseGenerator {
           '${content.substring(0, lastImportEnd)}\n$useCaseImport${content.substring(lastImportEnd)}';
     }
 
-    // Add field
-    final fieldPattern = RegExp(
-      'class ${config.blocName} extends Bloc<[^{]+\\{',
-      multiLine: true,
-    );
+    // 2. Add field (insert at start of class)
+    final classMarker = 'class ${config.blocName} extends Bloc<';
+    final classIndex = content.indexOf(classMarker);
 
-    final fieldMatch = fieldPattern.firstMatch(content);
-
-    if (fieldMatch != null) {
-      final insertPos = fieldMatch.end;
-      final newField =
-          '\n  final ${config.useCaseClassName} _${config.useCaseCamelCase}UseCase;';
-      content = content.substring(0, insertPos) +
-          newField +
-          content.substring(insertPos);
-    }
-
-    // Add to constructor parameters
-    final constructorPattern = RegExp(
-      '${config.blocName}\\(\\{[\\s\\S]*?\\}\\)',
-      multiLine: true,
-    );
-
-    final constructorMatch = constructorPattern.firstMatch(content);
-
-    if (constructorMatch != null) {
-      final constructor = constructorMatch.group(0)!;
-      final lastParam = constructor.lastIndexOf('UseCase');
-
-      if (lastParam != -1) {
-        // Find end of that line
-        final lineEnd = constructor.indexOf(',', lastParam);
-        if (lineEnd != -1) {
-          final newParam =
-              '\n    required ${config.useCaseClassName} ${config.useCaseCamelCase}UseCase,';
-          final updatedConstructor = constructor.substring(0, lineEnd + 1) +
-              newParam +
-              constructor.substring(lineEnd + 1);
-
-          content = content.replaceFirst(constructor, updatedConstructor);
-        }
+    if (classIndex != -1) {
+      final braceIndex = content.indexOf('{', classIndex);
+      if (braceIndex != -1) {
+        final newField =
+            '\n  final ${config.useCaseClassName} _${config.useCaseCamelCase}UseCase;';
+        content = content.substring(0, braceIndex + 1) +
+            newField +
+            content.substring(braceIndex + 1);
       }
     }
 
-    // Add to constructor initialization
-    final initPattern = RegExp(
-      '\\)\\s*:[\\s\\S]*?super\\(',
-      multiLine: true,
-    );
+    // 3. Add constructor parameter (insert at start of constructor)
+    final constructorMarker = '${config.blocName}({';
+    final constructorIndex = content.indexOf(constructorMarker);
 
-    final initMatch = initPattern.firstMatch(content);
+    if (constructorIndex != -1) {
+      final insertIndex = constructorIndex + constructorMarker.length;
+      final newParam =
+          '\n    required ${config.useCaseClassName} ${config.useCaseCamelCase}UseCase,';
+      content = content.substring(0, insertIndex) +
+          newParam +
+          content.substring(insertIndex);
+    }
+
+    // 4. Add initializer (insert at start of initializer list)
+    // Find ") :" which starts the initializer list
+    final initializerPattern = RegExp(r'\)\s*:');
+    final initMatch = initializerPattern.firstMatch(content);
 
     if (initMatch != null) {
-      final init = initMatch.group(0)!;
-      final lastInit = init.lastIndexOf('_');
-
-      if (lastInit != -1) {
-        final lineEnd = init.indexOf(',', lastInit);
-        if (lineEnd != -1) {
-          final newInit =
-              '\n        _${config.useCaseCamelCase}UseCase = ${config.useCaseCamelCase}UseCase,';
-          final updatedInit = init.substring(0, lineEnd + 1) +
-              newInit +
-              init.substring(lineEnd + 1);
-
-          content = content.replaceFirst(init, updatedInit);
-        }
-      }
+      final insertIndex = initMatch.end;
+      final newInit =
+          ' _${config.useCaseCamelCase}UseCase = ${config.useCaseCamelCase}UseCase,';
+      content = content.substring(0, insertIndex) +
+          newInit +
+          content.substring(insertIndex);
     }
 
     await blocFile.writeAsString(content);
@@ -406,12 +384,78 @@ class UseCaseGenerator {
 
      4. Initialize in constructor:
         _${config.useCaseCamelCase}UseCase = ${config.useCaseCamelCase}UseCase,
+
+     5. Register event (if using --with-event):
+        on<${config.eventName}>(_on${config.useCasePascalCase});
+
+     6. Add handler method (if using --with-event):
+        Future<void> _on${config.useCasePascalCase}(...) async { ... }
 ''');
+  }
+
+
+    // ==================== UPDATE BLOC STATE ====================
+
+  Future<void> _updateBlocState() async {
+    // Only needed for operations that use the enum
+    final enumValue = UseCaseTypeTemplates.stateOperationEnumValue(config);
+    if (enumValue == null) {
+      _log('  ⚠️  State update not needed for this usecase type');
+      return;
+    }
+
+    final stateFilePath = '${config.projectPath}/${config.blocPath}/${config.featureSnakeCase}_state.dart';
+    final stateFile = File(stateFilePath);
+
+    if (!stateFile.existsSync()) {
+      print('  ⚠️  State file not found. Skipping state update.');
+      return;
+    }
+
+    var content = await stateFile.readAsString();
+
+    // Check if operation already exists
+    if (content.contains('${config.useCaseCamelCase},')) {
+      _log('  ⚠️  Operation "${config.useCaseCamelCase}" already exists in state');
+      return;
+    }
+
+    // Find the enum and add the new operation
+    // Pattern: "enum FeatureOperation {"
+    final enumPattern = 'enum ${config.featurePascalCase}Operation {';
+    final enumIndex = content.indexOf(enumPattern);
+
+    if (enumIndex != -1) {
+      // Find the opening brace
+      final braceIndex = content.indexOf('{', enumIndex);
+      if (braceIndex != -1) {
+        // Insert right after the opening brace
+        content = content.substring(0, braceIndex + 1) +
+            '\n$enumValue' +
+            content.substring(braceIndex + 1);
+
+        await stateFile.writeAsString(content);
+        _log('  ✓ Added operation "${config.useCaseCamelCase}" to ${config.featurePascalCase}Operation enum');
+      }
+    } else {
+      _log('  ⚠️  Could not find ${config.featurePascalCase}Operation enum');
+    }
   }
 
   // ==================== ADD BLOC EVENT ====================
 
   Future<void> _addBlocEvent() async {
+    // 1. Add Event to Event File
+    await _addEventToEventFile();
+
+    // 2. Add Handler to BLoC File
+    await _addHandlerToBlocFile();
+
+    // 3. Register Event in BLoC Constructor
+    await _registerEventInBlocConstructor();
+  }
+
+  Future<void> _addEventToEventFile() async {
     final eventFile = File('${config.projectPath}/${config.eventFilePath}');
 
     if (!eventFile.existsSync()) {
@@ -427,17 +471,101 @@ class UseCaseGenerator {
       return;
     }
 
-    // Add event before the last closing brace
+    // Add event before the last closing brace (but we need to be careful)
+    // Events file doesn't have a class wrapper, just individual event classes
+    // So we append at the end of the file
     final eventCode = UseCaseTypeTemplates.blocEvent(config);
-    final lastBrace = content.lastIndexOf('}');
 
-    if (lastBrace != -1) {
-      content = content.substring(0, lastBrace) +
-          eventCode +
-          '\n${content.substring(lastBrace)}';
-    }
+    content = content + eventCode;
 
     await eventFile.writeAsString(content);
     _log('  ✓ Added event to ${config.featureSnakeCase}_event.dart');
+  }
+
+  Future<void> _addHandlerToBlocFile() async {
+    final blocFile = File('${config.projectPath}/${config.blocFilePath}');
+
+    if (!blocFile.existsSync()) {
+      print('  ⚠️  BLoC file not found. Skipping handler generation.');
+      return;
+    }
+
+    var content = await blocFile.readAsString();
+
+    final handlerName = '_on${config.useCasePascalCase}';
+
+    // Check if handler already exists
+    if (content.contains(handlerName)) {
+      _log('  ⚠️  Handler already exists');
+      return;
+    }
+
+    // Add handler before the last closing brace of the class
+    final handlerCode = UseCaseTypeTemplates.blocEventHandler(config);
+
+    final lastBrace = content.lastIndexOf('}');
+    if (lastBrace != -1) {
+      content = content.substring(0, lastBrace) +
+          handlerCode +
+          '\n${content.substring(lastBrace)}';
+    }
+
+    await blocFile.writeAsString(content);
+    _log('  ✓ Added handler to ${config.featureSnakeCase}_bloc.dart');
+  }
+
+  Future<void> _registerEventInBlocConstructor() async {
+    final blocFile = File('${config.projectPath}/${config.blocFilePath}');
+
+    if (!blocFile.existsSync()) {
+      return;
+    }
+
+    var content = await blocFile.readAsString();
+
+    final eventRegistration = UseCaseTypeTemplates.blocEventRegistration(config);
+
+    // Check if already registered
+    if (content.contains('on<${config.eventName}>')) {
+      _log('  ⚠️  Event already registered in constructor');
+      return;
+    }
+
+    // Find the constructor and the last "on<" registration
+    // We need to insert after the last "on<...>(...)" line
+
+    // Strategy: Find "super(" and insert before it
+    final superIndex = content.indexOf('super(const ${config.featurePascalCase}Initial())');
+
+    if (superIndex != -1) {
+      // Find the end of super() call - look for the closing ");"
+      final superEndSearch = content.indexOf(') {', superIndex);
+
+      if (superEndSearch != -1) {
+        // Find the last on<> before the first handler method
+        // We look for pattern: on<...>(...);
+        final constructorBodyStart = superEndSearch + 3; // after ") {"
+
+        // Find where to insert - after the last existing "on<" line
+        // Look for the pattern "on<" within the constructor body
+        final lastOnIndex = content.lastIndexOf(RegExp(r'on<\w+>\([^)]+\);'), constructorBodyStart + 500);
+
+        if (lastOnIndex != -1) {
+          // Find end of this line
+          final lineEnd = content.indexOf(';', lastOnIndex) + 1;
+          content = content.substring(0, lineEnd) +
+              '\n$eventRegistration' +
+              content.substring(lineEnd);
+        } else {
+          // No existing on<> found, insert after the opening brace
+          content = content.substring(0, constructorBodyStart) +
+              '\n$eventRegistration' +
+              content.substring(constructorBodyStart);
+        }
+
+        await blocFile.writeAsString(content);
+        _log('  ✓ Registered event in BLoC constructor');
+      }
+    }
   }
 }
