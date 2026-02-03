@@ -6,3 +6,4 @@ library;
 export 'feature_schema.dart';
 export 'screen_schema.dart';
 export 'widget_schema.dart';
+export 'action_schema.dart';

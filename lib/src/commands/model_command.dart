@@ -118,7 +118,7 @@ class ModelCommand extends BaseCommand {
   ) {
     if (results.wasParsed(option)) {
       for (var input in results[option] as List<String>) {
-        fields.add(FieldDefinition.parse(input));
+        fields.add(FieldDefinition.parse(input, type));
       }
     }
   }
