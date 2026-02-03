@@ -43,6 +43,31 @@
 - ⚡ **Smart Templates** - Pre-built templates for common patterns
 - 🧭 **Navigation Integration** - Automatic bottom nav and routing setup
 
+
+---
+
+## Installation
+
+### Via Direct Git Repo
+
+```bash
+dart pub global activate --source git https://github.com/JerinJamesMedas/embit-cli-v3.git
+
+```
+
+### Via Dart Pub
+
+```bash
+dart pub global activate embit
+```
+
+### Verify Installation
+
+```bash
+embit --version
+# Output: embit 0.9.0
+```
+
 ---
 
 ## What's New in 0.9.0
@@ -168,24 +193,6 @@ embit usecase -f products -n create_product -t custom \
   --int quantity \
   --with-event
 ```
-
----
-
-## Installation
-
-### Via Dart Pub
-
-```bash
-dart pub global activate embit
-```
-
-### Verify Installation
-
-```bash
-embit --version
-# Output: embit 0.9.0
-```
-
 ---
 
 ## Commands
