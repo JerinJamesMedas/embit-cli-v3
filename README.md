@@ -10,7 +10,7 @@
 
 ## Table of Contents
 
-- [Overview](#overview)
+[Overview](#overview)
 - [What's New in 0.9.0](#whats-new-in-090)
 - [What's New in 0.8.0](#whats-new-in-080)
 - [Installation](#installation)
