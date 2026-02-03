@@ -10,7 +10,7 @@
 
 ## Table of Contents
 
-- [Overview](#overview)
+- [Overview](#overview-section)
   - [What's New in 0.9.0](#whats-new-in-090)
   - [What's New in 0.8.0](#whats-new-in-080)
 - [Installation](#installation)
@@ -32,7 +32,7 @@
 
 ---
 
-## Overview
+## Overview Section
 
 **Embit CLI** is a powerful command-line interface tool designed to accelerate Flutter/Dart development by automating project scaffolding, feature generation, and enforcing Clean Architecture principles.
 
